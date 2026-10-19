@@ -1,0 +1,52 @@
+apiVersion: nuclio.io/v1beta1
+kind: NuclioFunction
+metadata:
+  name: cartesian_map_list
+  labels:
+    automacene.org/category: list
+    automacene.org/skill: cartesian_map
+    automacene.org/version: 1.0.0
+  annotations:
+    automacene.org/title: Cartesian Map
+    automacene.org/authors: Codie Petersen <codie@asteres-technologies.com>
+spec:
+  description: 'For each item, fill a template with every title: {a} is the item, {b} the title.'
+  runtime: python:3.11
+  handler: cartesian_map_list:handler
+  minReplicas: 1
+  maxReplicas: 1
+  triggers:
+    http:
+      kind: http
+      maxWorkers: 4
+
+  # The contract: the JSON body's keys and the JSON reply's. Nuclio has no field for it and ignores these.
+  inputs:
+  - name: items
+    type: array
+    description: Fills {a}; a single value counts as a list of one.
+    required: true
+  - name: titles
+    type: array
+    description: Fills {b}; a single value counts as a list of one.
+    required: true
+  - name: template
+    type: string
+    description: A Python format string using {a} and {b}.
+    required: true
+  output:
+  - name: items
+    type: array
+    description: One list of filled templates per item.
+  examples:
+  - input:
+      items:
+      - acme
+      titles:
+      - ceo
+      - cto
+      template: '{b} of {a}'
+    output:
+      items:
+      - - ceo of acme
+        - cto of acme

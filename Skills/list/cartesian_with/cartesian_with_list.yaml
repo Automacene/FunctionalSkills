@@ -1,0 +1,55 @@
+apiVersion: nuclio.io/v1beta1
+kind: NuclioFunction
+metadata:
+  name: cartesian_with_list
+  labels:
+    automacene.org/category: list
+    automacene.org/skill: cartesian_with
+    automacene.org/version: 1.0.0
+  annotations:
+    automacene.org/title: Cartesian With
+    automacene.org/authors: Codie Petersen <codie@asteres-technologies.com>
+spec:
+  description: 'Fill a template for every pair from two lists: {a} from second, {b} from first.'
+  runtime: python:3.11
+  handler: cartesian_with_list:handler
+  minReplicas: 1
+  maxReplicas: 1
+  triggers:
+    http:
+      kind: http
+      maxWorkers: 4
+
+  # The contract: the JSON body's keys and the JSON reply's. Nuclio has no field for it and ignores these.
+  inputs:
+  - name: first
+    type: array
+    description: Fills {b}; a single value counts as a list of one.
+    required: true
+  - name: second
+    type: array
+    description: Fills {a}; a single value counts as a list of one.
+    required: true
+  - name: template
+    type: string
+    description: A Python format string using {a} and {b}.
+    required: true
+  output:
+  - name: items
+    type: array
+    description: The filled templates, first varying slowest.
+  examples:
+  - input:
+      first:
+      - x
+      - y
+      second:
+      - 1
+      - 2
+      template: '{b}{a}'
+    output:
+      items:
+      - x1
+      - x2
+      - y1
+      - y2

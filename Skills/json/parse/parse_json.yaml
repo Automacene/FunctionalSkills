@@ -1,0 +1,42 @@
+apiVersion: nuclio.io/v1beta1
+kind: NuclioFunction
+metadata:
+  name: parse_json
+  labels:
+    automacene.org/category: json
+    automacene.org/skill: parse
+    automacene.org/version: 1.0.0
+  annotations:
+    automacene.org/title: From JSON String
+    automacene.org/authors: Codie Petersen <codie@asteres-technologies.com>
+spec:
+  description: Parse a JSON string into a value; an empty string gives an empty object.
+  runtime: python:3.11
+  handler: parse_json:handler
+  minReplicas: 1
+  maxReplicas: 1
+  triggers:
+    http:
+      kind: http
+      maxWorkers: 4
+
+  # The contract: the JSON body's keys and the JSON reply's. Nuclio has no field for it and ignores these.
+  inputs:
+  - name: text
+    type: string
+    description: The JSON.
+    required: true
+  output:
+  - name: value
+    type: object
+    description: The parsed value (any type).
+  examples:
+  - input:
+      text: '[1, 2]'
+    output:
+      value:
+      - 1
+      - 2
+  - input:
+      text: '{'
+    status: 400

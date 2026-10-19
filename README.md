@@ -82,11 +82,12 @@ so dependencies go in `spec.build.commands` (`pip install ...`), configuration i
 | `spec.handler` | required | `<module>:<function>`. `<module>` names the code file. |
 | `spec.runtime` | required | Picks the code file's extension: `python` `.py`, `golang` `.go`, `nodejs` `.js`, `shell` `.sh`. |
 | `spec.build` | optional | Never `path` or `functionSourceCode`: the code file is what gets deployed. |
-| `spec.inputs[]` | | `name`, `type`, `description`, `required`. The JSON body's keys. |
+| `spec.inputs[]` | | `name`, `type`, `description`, and `required` or `default`. The JSON body's keys. |
 | `spec.output[]` | | `name`, `type`, `description`, `required`. The JSON reply's keys. |
 | `spec.examples[]` | | `input`, and `output` and/or `status` (200 when left out). |
 
-Types are JSON's: `string`, `integer`, `number`, `boolean`, `array`, `object`.
+Types are JSON's: `string`, `integer`, `number`, `boolean`, `array`, `object`. A value that can be of any type is
+`object`, and its description says so.
 
 A handler takes a JSON body and answers with a JSON body. A bad request answers 400 with `{"error": ...}`; anything
 it raises is a 500.

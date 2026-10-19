@@ -1,0 +1,55 @@
+apiVersion: nuclio.io/v1beta1
+kind: NuclioFunction
+metadata:
+  name: enrich_with_fields_list
+  labels:
+    automacene.org/category: list
+    automacene.org/skill: enrich_with_fields
+    automacene.org/version: 1.0.0
+  annotations:
+    automacene.org/title: Enrich With Fields
+    automacene.org/authors: Codie Petersen <codie@asteres-technologies.com>
+spec:
+  description: Add fields to each object from parallel lists of values.
+  runtime: python:3.11
+  handler: enrich_with_fields_list:handler
+  minReplicas: 1
+  maxReplicas: 1
+  triggers:
+    http:
+      kind: http
+      maxWorkers: 4
+
+  # The contract: the JSON body's keys and the JSON reply's. Nuclio has no field for it and ignores these.
+  inputs:
+  - name: items
+    type: array
+    description: The objects to add to.
+    required: true
+  - name: fields
+    type: array
+    description: The field names, one per list.
+    required: true
+  - name: values
+    type: array
+    description: A list of values per field, read by position; short lists give null.
+    required: true
+  output:
+  - name: items
+    type: array
+    description: The objects with the fields added.
+  examples:
+  - input:
+      items:
+      - n: a
+      - n: b
+      fields:
+      - score
+      values:
+      - - 1
+    output:
+      items:
+      - n: a
+        score: 1
+      - n: b
+        score: null

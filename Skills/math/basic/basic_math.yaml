@@ -1,0 +1,121 @@
+apiVersion: nuclio.io/v1beta1
+kind: NuclioFunction
+metadata:
+  name: basic_math
+  labels:
+    automacene.org/category: math
+    automacene.org/skill: basic
+    automacene.org/version: 1.0.0
+  annotations:
+    automacene.org/title: Basic Math
+    automacene.org/authors: Codie Petersen <codie@asteres-technologies.com>
+spec:
+  description: 'Apply an arithmetic operator to a list of numbers: add, subtract, multiply, divide, floor_divide, mod, power,
+    min, max, mean, abs, negate, sqrt, floor, ceil or round.'
+  runtime: python:3.11
+  handler: basic_math:handler
+  minReplicas: 1
+  maxReplicas: 1
+  triggers:
+    http:
+      kind: http
+      maxWorkers: 4
+
+  # The contract: the JSON body's keys and the JSON reply's. Nuclio has no field for it and ignores these.
+  inputs:
+  - name: op
+    type: string
+    description: add, multiply, min, max and mean take any count; subtract, divide, floor_divide, mod and power take two or
+      more, applied left to right; abs, negate, sqrt, floor and ceil take one; round takes a value and optionally a number of
+      digits.
+    required: true
+  - name: values
+    type: array
+    description: The numbers.
+    required: true
+  output:
+  - name: value
+    type: number
+    description: The result; null for min, max or mean of no numbers.
+  examples:
+  - input:
+      op: add
+      values:
+      - 1
+      - 2
+      - 3
+      - 4
+      - 5
+    output:
+      value: 15
+  - input:
+      op: subtract
+      values:
+      - 10
+      - 3
+      - 2
+    output:
+      value: 5
+  - input:
+      op: multiply
+      values:
+      - 3
+      - 2.5
+    output:
+      value: 7.5
+  - input:
+      op: divide
+      values:
+      - 9
+      - 2
+    output:
+      value: 4.5
+  - input:
+      op: power
+      values:
+      - 2
+      - 3
+      - 2
+    output:
+      value: 64
+  - input:
+      op: mod
+      values:
+      - 10
+      - 4
+    output:
+      value: 2
+  - input:
+      op: round
+      values:
+      - 3.14159
+      - 2
+    output:
+      value: 3.14
+  - input:
+      op: sqrt
+      values:
+      - 16
+    output:
+      value: 4.0
+  - input:
+      op: max
+      values: []
+    output:
+      value: null
+  - input:
+      op: divide
+      values:
+      - 1
+      - 0
+    status: 400
+  - input:
+      op: subtract
+      values:
+      - 1
+    status: 400
+  - input:
+      op: nope
+      values:
+      - 1
+    status: 400
