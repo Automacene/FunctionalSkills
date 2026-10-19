@@ -1,0 +1,38 @@
+apiVersion: nuclio.io/v1beta1
+kind: NuclioFunction
+metadata:
+  name: encode_text
+  labels:
+    automacene.org/category: text
+    automacene.org/skill: encode
+    automacene.org/version: "1.0.0"
+  annotations:
+    automacene.org/title: Base64 Text Encoding
+    automacene.org/authors: Codie Petersen <codie@asteres-technologies.com>
+spec:
+  description: Encode a string as base64.
+  runtime: python:3.11
+  handler: encode_text:handler
+  minReplicas: 1
+  maxReplicas: 1
+  triggers:
+    http:
+      kind: http
+      maxWorkers: 4
+
+  # The contract: what a caller sends in the JSON body and gets back. Nuclio has no field for it and ignores these.
+  inputs:
+    - name: text
+      type: string
+      description: The string to encode.
+      required: true
+  output:
+    - name: encoded
+      type: string
+      description: The string's UTF-8 bytes, base64 encoded.
+      required: true
+  examples:
+    - input: {text: hello}
+      output: {encoded: aGVsbG8=}
+    - input: {}
+      status: 400
