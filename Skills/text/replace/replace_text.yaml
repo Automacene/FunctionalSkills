@@ -1,0 +1,47 @@
+apiVersion: nuclio.io/v1beta1
+kind: NuclioFunction
+metadata:
+  name: replace_text
+  labels:
+    automacene.org/category: text
+    automacene.org/skill: replace
+    automacene.org/version: 1.0.0
+  annotations:
+    automacene.org/title: Text Replace
+    automacene.org/authors: Codie Petersen <codie@asteres-technologies.com>
+spec:
+  description: Replace every occurrence of one substring with another.
+  runtime: python:3.11
+  handler: replace_text:handler
+  minReplicas: 1
+  maxReplicas: 1
+  triggers:
+    http:
+      kind: http
+      maxWorkers: 4
+
+  # The contract: the JSON body's keys and the JSON reply's. Nuclio has no field for it and ignores these.
+  inputs:
+  - name: text
+    type: string
+    description: The string to change.
+    required: true
+  - name: old
+    type: string
+    description: What to replace.
+    required: true
+  - name: new
+    type: string
+    description: What to put in its place.
+    required: true
+  output:
+  - name: text
+    type: string
+    description: The string with every occurrence replaced.
+  examples:
+  - input:
+      text: a-b-c
+      old: '-'
+      new: +
+    output:
+      text: a+b+c

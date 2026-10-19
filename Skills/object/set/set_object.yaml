@@ -1,0 +1,49 @@
+apiVersion: nuclio.io/v1beta1
+kind: NuclioFunction
+metadata:
+  name: set_object
+  labels:
+    automacene.org/category: object
+    automacene.org/skill: set
+    automacene.org/version: 1.0.0
+  annotations:
+    automacene.org/title: Set Field
+    automacene.org/authors: Codie Petersen <codie@asteres-technologies.com>
+spec:
+  description: A copy of an object with one key set.
+  runtime: python:3.11
+  handler: set_object:handler
+  minReplicas: 1
+  maxReplicas: 1
+  triggers:
+    http:
+      kind: http
+      maxWorkers: 4
+
+  # The contract: the JSON body's keys and the JSON reply's. Nuclio has no field for it and ignores these.
+  inputs:
+  - name: object
+    type: object
+    description: The object.
+    required: true
+  - name: key
+    type: string
+    description: The key.
+    required: true
+  - name: value
+    type: object
+    description: The value, of any type.
+  output:
+  - name: object
+    type: object
+    description: The changed copy.
+  examples:
+  - input:
+      object:
+        a: 1
+      key: b
+      value: 2
+    output:
+      object:
+        a: 1
+        b: 2

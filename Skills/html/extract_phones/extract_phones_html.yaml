@@ -1,0 +1,39 @@
+apiVersion: nuclio.io/v1beta1
+kind: NuclioFunction
+metadata:
+  name: extract_phones_html
+  labels:
+    automacene.org/category: html
+    automacene.org/skill: extract_phones
+    automacene.org/version: 1.0.0
+  annotations:
+    automacene.org/title: Extract Phones
+    automacene.org/authors: Codie Petersen <codie@asteres-technologies.com>
+spec:
+  description: Every North American phone number found in a block of HTML or text, in order.
+  runtime: python:3.11
+  handler: extract_phones_html:handler
+  minReplicas: 1
+  maxReplicas: 1
+  triggers:
+    http:
+      kind: http
+      maxWorkers: 4
+
+  # The contract: the JSON body's keys and the JSON reply's. Nuclio has no field for it and ignores these.
+  inputs:
+  - name: html
+    type: string
+    description: The HTML or text.
+    required: true
+  output:
+  - name: phones
+    type: array
+    description: The numbers, as written.
+  examples:
+  - input:
+      html: Call (555) 123-4567 or 555.987.6543
+    output:
+      phones:
+      - ' (555) 123-4567'
+      - ' 555.987.6543'

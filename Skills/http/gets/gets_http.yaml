@@ -1,0 +1,45 @@
+apiVersion: nuclio.io/v1beta1
+kind: NuclioFunction
+metadata:
+  name: gets_http
+  labels:
+    automacene.org/category: http
+    automacene.org/skill: gets
+    automacene.org/version: 1.0.0
+  annotations:
+    automacene.org/title: HTTP GET Many
+    automacene.org/authors: Codie Petersen <codie@asteres-technologies.com>
+spec:
+  description: Fetch several URLs and return their bodies as text, in order.
+  runtime: python:3.11
+  handler: gets_http:handler
+  minReplicas: 1
+  maxReplicas: 1
+  build:
+    commands:
+    - pip install requests
+  triggers:
+    http:
+      kind: http
+      maxWorkers: 4
+
+  # The contract: the JSON body's keys and the JSON reply's. Nuclio has no field for it and ignores these.
+  inputs:
+  - name: urls
+    type: array
+    description: What to fetch; a single string counts as a list of one.
+    required: true
+  - name: timeoutSeconds
+    type: number
+    description: How long to wait for each.
+    default: 10
+  output:
+  - name: texts
+    type: array
+    description: Each body, or null where the fetch failed.
+  - name: errors
+    type: array
+    description: For each failed fetch, its index and why.
+  examples:
+  - input: {}
+    status: 400

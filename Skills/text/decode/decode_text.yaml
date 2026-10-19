@@ -1,0 +1,40 @@
+apiVersion: nuclio.io/v1beta1
+kind: NuclioFunction
+metadata:
+  name: decode_text
+  labels:
+    automacene.org/category: text
+    automacene.org/skill: decode
+    automacene.org/version: 1.0.0
+  annotations:
+    automacene.org/title: Base64 Text Decoding
+    automacene.org/authors: Codie Petersen <codie@asteres-technologies.com>
+spec:
+  description: Decode base64 into a UTF-8 string.
+  runtime: python:3.11
+  handler: decode_text:handler
+  minReplicas: 1
+  maxReplicas: 1
+  triggers:
+    http:
+      kind: http
+      maxWorkers: 4
+
+  # The contract: the JSON body's keys and the JSON reply's. Nuclio has no field for it and ignores these.
+  inputs:
+  - name: encoded
+    type: string
+    description: The base64 to decode.
+    required: true
+  output:
+  - name: text
+    type: string
+    description: The decoded string.
+  examples:
+  - input:
+      encoded: aGVsbG8=
+    output:
+      text: hello
+  - input:
+      encoded: '%%'
+    status: 400

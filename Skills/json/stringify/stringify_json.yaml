@@ -1,0 +1,39 @@
+apiVersion: nuclio.io/v1beta1
+kind: NuclioFunction
+metadata:
+  name: stringify_json
+  labels:
+    automacene.org/category: json
+    automacene.org/skill: stringify
+    automacene.org/version: 1.0.0
+  annotations:
+    automacene.org/title: To JSON String
+    automacene.org/authors: Codie Petersen <codie@asteres-technologies.com>
+spec:
+  description: Serialize a value as a JSON string.
+  runtime: python:3.11
+  handler: stringify_json:handler
+  minReplicas: 1
+  maxReplicas: 1
+  triggers:
+    http:
+      kind: http
+      maxWorkers: 4
+
+  # The contract: the JSON body's keys and the JSON reply's. Nuclio has no field for it and ignores these.
+  inputs:
+  - name: value
+    type: object
+    description: The value, of any type.
+    required: true
+  output:
+  - name: text
+    type: string
+    description: The JSON.
+  examples:
+  - input:
+      value:
+        a:
+        - 1
+    output:
+      text: '{"a": [1]}'

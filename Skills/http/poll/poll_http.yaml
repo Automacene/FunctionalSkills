@@ -1,0 +1,68 @@
+apiVersion: nuclio.io/v1beta1
+kind: NuclioFunction
+metadata:
+  name: poll_http
+  labels:
+    automacene.org/category: http
+    automacene.org/skill: poll
+    automacene.org/version: 1.0.0
+  annotations:
+    automacene.org/title: HTTP Poll
+    automacene.org/authors: Codie Petersen <codie@asteres-technologies.com>
+spec:
+  description: Call one HTTP endpoint until a field of its reply has an expected value, and return that reply.
+  runtime: python:3.11
+  handler: poll_http:handler
+  minReplicas: 1
+  maxReplicas: 1
+  build:
+    commands:
+    - pip install requests
+  triggers:
+    http:
+      kind: http
+      maxWorkers: 4
+
+  # The contract: the JSON body's keys and the JSON reply's. Nuclio has no field for it and ignores these.
+  inputs:
+  - name: url
+    type: string
+    description: The endpoint.
+    required: true
+  - name: until
+    type: object
+    description: 'The stop condition: {field: <dotted path into the reply>, equals: <value>}.'
+    required: true
+  - name: method
+    type: string
+    description: GET sends params as the query; anything else as a JSON body.
+    default: GET
+  - name: headers
+    type: object
+    description: Sent with every call.
+    default: {}
+  - name: params
+    type: object
+    description: Sent with every call.
+    default: {}
+  - name: intervalMs
+    type: number
+    description: Pause between calls.
+    default: 2000
+  - name: maxAttempts
+    type: integer
+    description: Calls before giving up.
+    default: 100
+  output:
+  - name: result
+    type: object
+    description: The reply that matched.
+  - name: attempts
+    type: integer
+    description: How many calls it took.
+  examples:
+  - input:
+      url: http://x
+      until:
+        field: status
+    status: 400

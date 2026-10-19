@@ -1,0 +1,51 @@
+apiVersion: nuclio.io/v1beta1
+kind: NuclioFunction
+metadata:
+  name: gets_object
+  labels:
+    automacene.org/category: object
+    automacene.org/skill: gets
+    automacene.org/version: 1.0.0
+  annotations:
+    automacene.org/title: Get Fields
+    automacene.org/authors: Codie Petersen <codie@asteres-technologies.com>
+spec:
+  description: Several keys' values from an object, in the order asked.
+  runtime: python:3.11
+  handler: gets_object:handler
+  minReplicas: 1
+  maxReplicas: 1
+  triggers:
+    http:
+      kind: http
+      maxWorkers: 4
+
+  # The contract: the JSON body's keys and the JSON reply's. Nuclio has no field for it and ignores these.
+  inputs:
+  - name: object
+    type: object
+    description: The object.
+    required: true
+  - name: keys
+    type: array
+    description: The keys.
+    required: true
+  - name: default
+    type: object
+    description: Used for each missing key, of any type.
+  output:
+  - name: values
+    type: array
+    description: The values, in key order.
+  examples:
+  - input:
+      object:
+        a: 1
+        b: 2
+      keys:
+      - b
+      - c
+    output:
+      values:
+      - 2
+      - null

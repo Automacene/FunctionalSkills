@@ -12,6 +12,8 @@ import re
 import sys
 import yaml
 
+sys.dont_write_bytecode = True  # importing a skill to run its examples leaves no __pycache__ in Skills/
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SKILLS = ROOT / "Skills"
 
@@ -150,7 +152,7 @@ def check(config):
         code = config.parent / (handler.split(":")[0] + extension)
         if not code.is_file():
             problems.append(f"no {code.name} next to the config")
-        elif extension == ".py" and not problems:
+        elif extension == ".py" and spec.get("examples") and not problems:
             run_examples(doc, code, problems)
     return problems
 

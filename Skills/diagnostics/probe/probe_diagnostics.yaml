@@ -1,0 +1,53 @@
+apiVersion: nuclio.io/v1beta1
+kind: NuclioFunction
+metadata:
+  name: probe_diagnostics
+  labels:
+    automacene.org/category: diagnostics
+    automacene.org/skill: probe
+    automacene.org/version: 1.0.0
+  annotations:
+    automacene.org/title: Probe
+    automacene.org/authors: Codie Petersen <codie@asteres-technologies.com>
+spec:
+  description: 'Does what its input asks, to check how a caller reads each kind of reply: echo, sleep, raise, text or status.'
+  runtime: python:3.11
+  handler: probe_diagnostics:handler
+  minReplicas: 1
+  maxReplicas: 1
+  triggers:
+    http:
+      kind: http
+      maxWorkers: 4
+
+  # The contract: the JSON body's keys and the JSON reply's. Nuclio has no field for it and ignores these.
+  inputs:
+  - name: mode
+    type: string
+    description: echo (the default), sleep, raise, text or status.
+    default: echo
+  - name: seconds
+    type: number
+    description: How long sleep sleeps.
+    default: 1
+  - name: code
+    type: integer
+    description: The HTTP status status answers with.
+    default: 500
+  output:
+  - name: echo
+    type: object
+    description: The request body, for echo.
+  - name: slept
+    type: number
+    description: The seconds slept, for sleep.
+  examples:
+  - input:
+      mode: echo
+    output:
+      echo:
+        mode: echo
+  - input:
+      mode: status
+      code: 409
+    status: 409

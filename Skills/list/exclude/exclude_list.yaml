@@ -1,0 +1,52 @@
+apiVersion: nuclio.io/v1beta1
+kind: NuclioFunction
+metadata:
+  name: exclude_list
+  labels:
+    automacene.org/category: list
+    automacene.org/skill: exclude
+    automacene.org/version: 1.0.0
+  annotations:
+    automacene.org/title: Exclude
+    automacene.org/authors: Codie Petersen <codie@asteres-technologies.com>
+spec:
+  description: Drop the items a predicate holds for.
+  runtime: python:3.11
+  handler: exclude_list:handler
+  minReplicas: 1
+  maxReplicas: 1
+  triggers:
+    http:
+      kind: http
+      maxWorkers: 4
+
+  # The contract: the JSON body's keys and the JSON reply's. Nuclio has no field for it and ignores these.
+  inputs:
+  - name: predicate
+    type: string
+    description: eq, ne, gt, gte, lt, lte, contains, is_empty, is_null or not.
+    required: true
+  - name: items
+    type: array
+    description: The list.
+    required: true
+  - name: args
+    type: array
+    description: Arguments after the item, e.g. [5] for gt 5.
+    default: []
+  output:
+  - name: items
+    type: array
+    description: The items kept.
+  examples:
+  - input:
+      predicate: is_empty
+      items:
+      - a
+      - ''
+      - null
+      - b
+    output:
+      items:
+      - a
+      - b
