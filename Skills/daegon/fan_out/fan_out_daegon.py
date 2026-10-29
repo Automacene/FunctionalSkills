@@ -56,8 +56,9 @@ def _fan_out(data, topic, reply_topic, target, items, shared, delay, timeout, co
             waiting[call_id] = index
             payload = {**shared, **(item if isinstance(item, dict) else {"item": item}),
                        "metadata": {"target": target, "source": SOURCE, "sourceType": "function",
-                                    "timestamp": int(time.time()), "correlationId": correlation_id, "callId": call_id}}
-            data.producer.produce(topic, serializer(payload, SerializationContext(topic, MessageField.VALUE)))
+                                    "timestamp": time.time(), "correlationId": correlation_id, "callId": call_id}}
+            data.producer.produce(topic, serializer(payload, SerializationContext(topic, MessageField.VALUE)),
+                                  headers=[("daegon-target", target)])  # lets other services pass it over unread
             if delay and index < len(items) - 1:
                 time.sleep(delay)
         data.producer.flush()
