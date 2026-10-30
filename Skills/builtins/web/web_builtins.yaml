@@ -1,0 +1,148 @@
+apiVersion: nuclio.io/v1beta1
+kind: NuclioFunction
+metadata:
+  name: web_builtins
+  labels:
+    automacene.org/category: builtins
+    automacene.org/skill: web
+    automacene.org/version: 1.0.0
+  annotations:
+    automacene.org/title: Web Built-ins
+    automacene.org/authors: Codie Petersen <codie@asteres-technologies.com>
+spec:
+  description: 'DAEGON''s web built-ins: calls to outside HTTP endpoints, in one function. get and gets fetch, scrape
+    gives a page''s (or several pages'') visible text, poll calls until a field has a value, fan_out calls once
+    per item, token gives a Google OAuth access token.'
+  runtime: python:3.11
+  handler: web_builtins:handler
+  minReplicas: 1
+  maxReplicas: 1
+  env:
+  - name: GOOGLE_CLIENT_ID
+    value: ''
+  - name: GOOGLE_CLIENT_SECRET
+    value: ''
+  - name: GOOGLE_REFRESH_TOKEN
+    value: ''
+  build:
+    commands:
+    - pip install requests beautifulsoup4
+  triggers:
+    http:
+      kind: http
+      maxWorkers: 16
+
+  # The contract: the JSON body's keys and the JSON reply's. Nuclio has no field for it and ignores these.
+  inputs:
+  - name: op
+    type: string
+    description: 'The operation: get, gets, scrape, poll, fan_out, token.'
+    required: true
+  - name: url
+    type: string
+    description: 'get, scrape, poll, fan_out: the URL (scrape takes urls instead for several pages).'
+    required: false
+  - name: timeoutSeconds
+    type: number
+    description: 'fan_out, scrape, gets, get: How long to wait.'
+    default: 10
+  - name: urls
+    type: array
+    description: 'gets, scrape: what to fetch; for gets a single string counts as a list of one.'
+    required: false
+  - name: maxChars
+    type: integer
+    description: 'scrape: The most text returned.'
+    default: 5000
+  - name: until
+    type: object
+    description: 'poll: The stop condition: {field: <dotted path into the reply>, equals: <value>}.'
+    required: false
+  - name: method
+    type: string
+    description: 'fan_out, poll: GET sends params as the query; anything else as a JSON body.'
+    default: GET
+  - name: headers
+    type: object
+    description: 'fan_out, poll: Sent with every call.'
+    default: {}
+  - name: params
+    type: object
+    description: 'fan_out, poll: Sent with every call.'
+    default: {}
+  - name: intervalMs
+    type: number
+    description: 'poll: Pause between calls.'
+    default: 2000
+  - name: maxAttempts
+    type: integer
+    description: 'poll: Calls before giving up.'
+    default: 100
+  - name: items
+    type: array
+    description: 'fan_out: One call per item; an object is merged over params, anything else is sent as item.'
+    required: false
+  - name: delayMs
+    type: number
+    description: 'fan_out: Pause between calls.'
+    default: 0
+  output:
+  - name: text
+    type: string
+    description: 'scrape, get: The response body.'
+  - name: status
+    type: integer
+    description: 'get: The response''s HTTP status.'
+  - name: texts
+    type: array
+    description: 'gets: each body, or null where the fetch failed; scrape with urls: each page''s text, empty where
+      it failed.'
+  - name: errors
+    type: array
+    description: 'gets, scrape with urls: for each failed fetch, its index and why.'
+  - name: error
+    type: string
+    description: 'scrape: Why the page could not be fetched, when it could not.'
+  - name: result
+    type: object
+    description: 'poll: The reply that matched.'
+  - name: attempts
+    type: integer
+    description: 'poll: How many calls it took.'
+  - name: results
+    type: array
+    description: 'fan_out: Each reply''s JSON (or {text} for a reply that is not JSON), in item order.'
+  - name: token
+    type: string
+    description: 'token: The access token.'
+  - name: expiresAt
+    type: integer
+    description: 'token: When it expires, in epoch seconds.'
+  examples:
+  - input:
+      op: get
+    status: 400
+  - input:
+      op: gets
+    status: 400
+  - input:
+      op: scrape
+    status: 400
+  - input:
+      op: poll
+      url: http://x
+      until:
+        field: status
+    status: 400
+  - input:
+      op: fan_out
+      items:
+      - 1
+    status: 400
+  - input:
+      op: scrape
+      urls: x
+    status: 400
+  - input:
+      op: nope
+    status: 400

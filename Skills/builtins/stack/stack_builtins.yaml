@@ -1,0 +1,94 @@
+apiVersion: nuclio.io/v1beta1
+kind: NuclioFunction
+metadata:
+  name: stack_builtins
+  labels:
+    automacene.org/category: builtins
+    automacene.org/skill: stack
+    automacene.org/version: 1.0.0
+  annotations:
+    automacene.org/title: Stack Built-ins
+    automacene.org/authors: Codie Petersen <codie@asteres-technologies.com>
+spec:
+  description: 'DAEGON''s stack built-ins: calls to DAEGON''s own services and functions, in one function. fan_out
+    sends one Kafka request per item to a service and returns the replies in order; op_on calls a nuclio function
+    once per item.'
+  runtime: python:3.11
+  handler: stack_builtins:handler
+  minReplicas: 1
+  maxReplicas: 1
+  env:
+  - name: BOOTSTRAP_SERVERS
+    value: broker:9092
+  - name: SCHEMA_REGISTRY
+    value: http://schema_registry:8081
+  build:
+    commands:
+    - pip install requests confluent-kafka[json,schemaregistry]
+  triggers:
+    http:
+      kind: http
+      maxWorkers: 16
+
+  # The contract: the JSON body's keys and the JSON reply's. Nuclio has no field for it and ignores these.
+  inputs:
+  - name: op
+    type: string
+    description: 'The operation: fan_out, op_on.'
+    required: true
+  - name: topic
+    type: string
+    description: 'fan_out: The service''s request topic. A workflow step can name the operation instead (_operation_),
+      and the engine fills this in.'
+    required: false
+  - name: replyTopic
+    type: string
+    description: 'fan_out: The service''s response topic. A workflow step can name the operation instead (_operation_),
+      and the engine fills this in.'
+    required: false
+  - name: target
+    type: string
+    description: 'fan_out: The service''s name, which it filters requests by. A workflow step can name the operation
+      instead (_operation_), and the engine fills this in.'
+    required: false
+  - name: items
+    type: array
+    description: 'op_on, fan_out: One request per item; an object is merged over params, anything else is sent as
+      item.'
+    required: false
+  - name: params
+    type: object
+    description: 'op_on, fan_out: Fields sent with every item.'
+    default: {}
+  - name: delayMs
+    type: number
+    description: 'fan_out: Pause between requests.'
+    default: 0
+  - name: timeoutSeconds
+    type: number
+    description: 'op_on, fan_out: How long to wait for all replies.'
+    default: 120
+  - name: function
+    type: string
+    description: 'op_on: The nuclio function to call, by name.'
+    required: false
+  - name: field
+    type: string
+    description: 'op_on: The input each item is sent as; an object item with no field is merged over params instead.'
+    required: false
+  output:
+  - name: results
+    type: array
+    description: 'op_on, fan_out: Each reply message, in item order (null where none came).'
+  - name: errors
+    type: array
+    description: 'op_on: For each failed call, its index and why.'
+  examples:
+  - input:
+      op: op_on
+      items:
+      - 1
+    status: 400
+  - input:
+      op: nope
+    status: 400

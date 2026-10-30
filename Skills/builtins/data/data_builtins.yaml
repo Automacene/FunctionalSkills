@@ -1,0 +1,287 @@
+apiVersion: nuclio.io/v1beta1
+kind: NuclioFunction
+metadata:
+  name: data_builtins
+  labels:
+    automacene.org/category: builtins
+    automacene.org/skill: data
+    automacene.org/version: 1.0.0
+  annotations:
+    automacene.org/title: Data Built-ins
+    automacene.org/authors: Codie Petersen <codie@asteres-technologies.com>
+spec:
+  description: 'DAEGON''s data built-ins: the shape of JSON values, in one function. Either a named operation (op):
+    rows, pluck, group, find; or an expression of built-ins, each call an object with one key that starts with "$"
+    and the list of its arguments, such as {"$get": [{"$first": [[{"a": 1}]]}, "a"]}; anything else is data. Built-ins:
+    list, first, last, nth, len, range, dupe, dedupe, flatten, vslice, find_by, zip, keyed_zip, enrich_with_fields,
+    merge_on, cartesian_with, cartesian_map, op_on, include, exclude, exclude_on_fields, dedupe_vals, get, gets,
+    set, sets, has_any_value, all_empty, min, max, eq, ne, gt, gte, lt, lte, contains, is_empty, is_null, not, and,
+    or.'
+  runtime: python:3.11
+  handler: data_builtins:handler
+  minReplicas: 1
+  maxReplicas: 1
+  triggers:
+    http:
+      kind: http
+      maxWorkers: 4
+
+  # The contract: the JSON body's keys and the JSON reply's. Nuclio has no field for it and ignores these.
+  inputs:
+  - name: op
+    type: string
+    description: 'A named operation: format, parse_json. Its inputs are those below marked with it.'
+    required: false
+  - name: path
+    type: string
+    description: 'pluck: a list in each item to read instead (web.results). Dotted, with 0, 1, -1 for list positions.'
+    default: ''
+  - name: field
+    type: string
+    description: 'find: the path whose value is wanted.'
+    default: null
+  - name: items
+    type: array
+    description: 'parse_json, pluck, group: the items.'
+    required: false
+  - name: columns
+    type: object
+    description: 'rows: field name to a list of values, read by position'
+    required: false
+  - name: shared
+    type: object
+    description: 'rows: fields set on every row.'
+    default: {}
+  - name: json
+    type: object
+    description: 'rows: field name to a list of row fields, folded into that one as JSON text.'
+    default: {}
+  - name: wrap
+    type: string
+    description: 'rows: put each row under this key, such as prompt.'
+    default: ''
+  - name: limit
+    type: integer
+    description: 'pluck: read only the first items.'
+    default: null
+  - name: by
+    type: string
+    description: 'group: the path of the value items are grouped by.'
+    required: false
+  - name: collect
+    type: array
+    description: 'group: the fields that gather every distinct value as a list.'
+    default: []
+  - name: item
+    type: object
+    description: 'find: what to search, depth first, itself included.'
+    required: false
+  - name: where
+    type: object
+    description: 'find: paths and the values they must have.'
+    default: {}
+  - name: fallback
+    type: boolean
+    description: 'find: when nothing matches where, take the first object that has the field.'
+    default: false
+  - name: decode
+    type: string
+    description: 'find: base64 to decode the value (base64 or base64url).'
+    default: ''
+  - name: expr
+    type: object
+    description: One expression, of any type. Give this, fields, or both.
+    required: false
+  - name: fields
+    type: object
+    description: Named expressions, each evaluated on its own.
+    required: false
+  output:
+  - name: value
+    type: object
+    description: 'expr: its value, of any type.'
+  - name: fields
+    type: object
+    description: The value of each named expression, when fields was given.
+  - name: rows
+    type: array
+    description: 'rows, pluck, group: the rows.'
+  - name: columns
+    type: object
+    description: 'pluck, group: each output field as a list, by row.'
+  examples:
+  - input:
+      op: rows
+      columns:
+        description:
+        - d1
+        text:
+        - t1
+      shared:
+        criteria: c
+        summary: s
+      json:
+        content:
+        - description
+        - summary
+        - text
+      wrap: prompt
+    output:
+      rows:
+      - prompt:
+          criteria: c
+          content: '{"description": "d1", "summary": "s", "text": "t1"}'
+  - input:
+      op: pluck
+      items:
+      - web:
+          results:
+          - title: A
+            meta_url:
+              hostname: a.com
+      - web:
+          results:
+          - title: B
+      path: web.results
+      fields:
+        title: title
+        hostname: meta_url.hostname
+    output:
+      rows:
+      - title: A
+        hostname: a.com
+      - title: B
+        hostname: null
+      columns:
+        title:
+        - A
+        - B
+        hostname:
+        - a.com
+        - null
+  - input:
+      op: group
+      items:
+      - displayName:
+          text: A
+        formattedAddress: 1 St
+        websiteUri: w1
+      - displayName:
+          text: A
+        formattedAddress: 2 St
+        websiteUri: w2
+      - formattedAddress: nameless
+      by: displayName.text
+      fields:
+        name: displayName.text
+        address: formattedAddress
+        website: websiteUri
+      collect:
+      - address
+    output:
+      rows:
+      - name: A
+        address:
+        - 1 St
+        - 2 St
+        website: w2
+      columns:
+        name:
+        - A
+        address:
+        - - 1 St
+          - 2 St
+        website:
+        - w2
+  - input:
+      op: find
+      item:
+        payload:
+          parts:
+          - mimeType: text/html
+            body:
+              data: PHA-
+          - mimeType: text/plain
+            body:
+              data: aGk_Pg==
+      where:
+        mimeType: text/plain
+      field: body.data
+      decode: base64
+    output:
+      value: hi?>
+  - input:
+      op: nope
+    status: 400
+  - input:
+      fields:
+        names:
+          $vslice:
+          - - name: Ada
+            - name: Grace
+          - name
+        count:
+          $len:
+          - - 1
+            - 2
+            - 3
+    output:
+      fields:
+        names:
+        - Ada
+        - Grace
+        count: 3
+  - input:
+      expr:
+        $exclude:
+        - is_empty
+        - - x
+          - ''
+          - y
+    output:
+      value:
+      - x
+      - y
+  - input:
+      expr:
+        $nope: []
+    status: 400
+  - input:
+      expr:
+        $first: x
+    status: 400
+  - input: {}
+    status: 400
+  - input:
+      expr:
+        $dedupe_vals:
+        - - 3
+          - 1
+          - 3
+          - 2
+    output:
+      value:
+      - 1
+      - 2
+      - 3
+  - input:
+      fields:
+        high:
+          $max:
+          - - 1
+            - 5
+            - 2
+        low:
+          $min:
+          - - 1
+            - 5
+            - 2
+    output:
+      fields:
+        high: 5
+        low: 1
+  - input:
+      expr:
+        $encode:
+        - x
+    status: 400
