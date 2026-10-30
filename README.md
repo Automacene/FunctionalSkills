@@ -12,8 +12,8 @@ Skills/<category>/<skill>/<module>.py
 ```
 
 ```
-Skills/text/encode/encode_text.yaml
-Skills/text/encode/encode_text.py
+Skills/math/basic/basic_math.yaml
+Skills/math/basic/basic_math.py
 ```
 
 A skill's folder holds everything that is its own. The config's filename is its `metadata.name`, which is the
@@ -22,7 +22,24 @@ keeping functions and schemas on `_` keeps the two from being mistaken for each 
 
 A function is one code file. Something that needs several is a service, not a skill.
 
+## The built-ins
+
+Most of what a workflow does between service calls is in four functions, so a stack runs four nuclio functions for
+it rather than one per kind of step. Each takes either a named operation (`op`) or an expression of built-ins, a call
+being an object with one key that starts with `$` and the list of its arguments: `{"$get": [{"$first": [x]}, "id"]}`.
+
+| Skill | What it holds | Waits on |
+|---|---|---|
+| `builtins/data` | The shape of JSON values: lists, objects, comparisons, `min` / `max`; ops `rows`, `pluck`, `group`, `find` | nothing |
+| `builtins/text` | Strings, encodings, JSON text; ops `format`, `parse_json` | nothing |
+| `builtins/web` | Outside HTTP: ops `get`, `gets`, `scrape`, `poll`, `fan_out`, `token` (Google OAuth) | outside servers |
+| `builtins/stack` | DAEGON's own services and functions: ops `fan_out` (Kafka), `op_on` (a nuclio function per item) | the stack |
+
+Others stand alone: `math/basic` (to grow into a larger math function) and `diagnostics/probe` (for test suites).
+
 ## A skill
+
+A minimal one, for the format:
 
 ```yaml
 apiVersion: nuclio.io/v1beta1
@@ -106,11 +123,11 @@ The repo holds plaintext. Deploying inlines the code into `spec.build.functionSo
 From DAEGON:
 
 ```
-daegon functions add text/encode                       from GitHub, Automacene/FunctionalSkills/main
-daegon functions add text/encode --from <folder>       from a checkout
-daegon functions add text/encode --from <owner>/<repo>/<branch>
+daegon functions add builtins/text                     from GitHub, Automacene/FunctionalSkills/main
+daegon functions add builtins/text --from <folder>     from a checkout
+daegon functions add builtins/text --from <owner>/<repo>/<branch>
 daegon functions                                       what is deployed, with inputs and outputs
-daegon functions remove encode_text
+daegon functions remove text_builtins
 ```
 
 ## Checking

@@ -1,0 +1,196 @@
+apiVersion: nuclio.io/v1beta1
+kind: NuclioFunction
+metadata:
+  name: text_builtins
+  labels:
+    automacene.org/category: builtins
+    automacene.org/skill: text
+    automacene.org/version: 1.0.0
+  annotations:
+    automacene.org/title: Text Built-ins
+    automacene.org/authors: Codie Petersen <codie@asteres-technologies.com>
+spec:
+  description: 'DAEGON''s text built-ins: strings, encodings, templates and JSON text, in one function. Either a
+    named operation (op): format, parse_json; or an expression of built-ins, each call an object with one key that
+    starts with "$" and the list of its arguments, such as {"$concat": ["a", "b"]}; anything else is data. Built-ins:
+    encode, decode, str, concat, nl, replace, split, sanitize, slug, to_jsons, from_jsons, extract_emails, extract_phones,
+    join, op_on.'
+  runtime: python:3.11
+  handler: text_builtins:handler
+  minReplicas: 1
+  maxReplicas: 1
+  triggers:
+    http:
+      kind: http
+      maxWorkers: 4
+
+  # The contract: the JSON body's keys and the JSON reply's. Nuclio has no field for it and ignores these.
+  inputs:
+  - name: op
+    type: string
+    description: 'A named operation: format, parse_json. Its inputs are those below marked with it.'
+    required: false
+  - name: items
+    type: array
+    description: 'parse_json, pluck, group: the items.'
+    required: false
+  - name: path
+    type: string
+    description: 'parse_json: the text in each item (modelResponses.0)'
+    default: ''
+  - name: field
+    type: string
+    description: 'parse_json: pick this path of each parsed item, as values'
+    default: null
+  - name: dropEmpty
+    type: boolean
+    description: 'parse_json: drop what did not parse, and objects whose every value is empty.'
+    default: false
+  - name: template
+    type: string
+    description: 'format: a template with {name}, {list[0]}, {object[key]}.'
+    required: false
+  - name: values
+    type: object
+    description: 'format: the values the template reads.'
+    required: false
+  - name: encode
+    type: boolean
+    description: 'format: also give the text base64 encoded.'
+    default: false
+  - name: expr
+    type: object
+    description: One expression, of any type. Give this, fields, or both.
+    required: false
+  - name: fields
+    type: object
+    description: Named expressions, each evaluated on its own.
+    required: false
+  output:
+  - name: value
+    type: object
+    description: 'expr: its value, of any type.'
+  - name: fields
+    type: object
+    description: The value of each named expression, when fields was given.
+  - name: items
+    type: array
+    description: 'parse_json: each item''s JSON, null where it did not parse.'
+  - name: values
+    type: array
+    description: 'parse_json: each item''s field, with field.'
+  - name: text
+    type: string
+    description: 'format: the filled template.'
+  - name: encoded
+    type: string
+    description: 'format: the text base64 encoded, with encode.'
+  examples:
+  - input:
+      op: parse_json
+      items:
+      - modelResponses:
+        - '{"score": 1}'
+      - modelResponses:
+        - '```json
+
+          {"score": 0}
+
+          ```'
+      - modelResponses:
+        - 'no'
+      path: modelResponses.0
+      field: score
+    output:
+      items:
+      - score: 1
+      - score: 0
+      - null
+      values:
+      - 1
+      - 0
+      - null
+  - input:
+      op: parse_json
+      items:
+      - '{"name": "Ada"}'
+      - '{"name": ""}'
+      - 'no'
+      dropEmpty: true
+    output:
+      items:
+      - name: Ada
+  - input:
+      op: format
+      template: '{history}
+
+        USER: {user}
+
+        DAEGON: {reply[0]}'
+      values:
+        history: h
+        user: q
+        reply:
+        - a
+      encode: true
+    output:
+      text: 'h
+
+        USER: q
+
+        DAEGON: a'
+      encoded: aApVU0VSOiBxCkRBRUdPTjogYQ==
+  - input:
+      op: format
+      template: '{x.real}'
+      values:
+        x: 1
+    status: 400
+  - input:
+      op: nope
+    status: 400
+  - input:
+      expr:
+        $op_on:
+        - encode
+        - - a
+          - b
+    output:
+      value:
+      - YQ==
+      - Yg==
+  - input:
+      expr:
+        literal: data
+        nested:
+          $nl: []
+    output:
+      value:
+        literal: data
+        nested: '
+
+          '
+  - input:
+      expr:
+        $nope: []
+    status: 400
+  - input:
+      expr:
+        $first: x
+    status: 400
+  - input: {}
+    status: 400
+  - input:
+      expr:
+        $join:
+        - - a
+          - null
+          - b
+        - ', '
+    output:
+      value: a, b
+  - input:
+      expr:
+        $first:
+        - - 1
+    status: 400
