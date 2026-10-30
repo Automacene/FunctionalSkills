@@ -90,15 +90,51 @@ def _at(value, path):
     return value
 
 
+CONDITIONS = {
+    "equals": lambda value, want: value == want,
+    "ne": lambda value, want: value != want,
+    "in": lambda value, want: value in want,
+    "notIn": lambda value, want: value not in want,
+    "exists": lambda value, want: (value is not None) == bool(want),
+    "gt": lambda value, want: value is not None and value > want,
+    "gte": lambda value, want: value is not None and value >= want,
+    "lt": lambda value, want: value is not None and value < want,
+    "lte": lambda value, want: value is not None and value <= want,
+    "contains": lambda value, want: value is not None and want in value,
+}
+
+
+def _conditions(until):
+    """The stop conditions: one {field?, <test>: value} or a list of them, all of which must hold. field is a dotted
+    path into the reply (none: the whole reply); the test is one of CONDITIONS."""
+    conditions = until if isinstance(until, list) else [until]
+    checked = []
+    for condition in conditions:
+        if not isinstance(condition, dict):
+            raise BadRequest("'until' must be an object, or a list of them")
+        tests = [key for key in condition if key != "field"]
+        if len(tests) != 1 or tests[0] not in CONDITIONS:
+            raise BadRequest(f"each condition in 'until' needs exactly one test, one of {', '.join(CONDITIONS)}")
+        if "in" in tests or "notIn" in tests:
+            if not isinstance(condition[tests[0]], list):
+                raise BadRequest(f"'{tests[0]}' takes a list")
+        checked.append((condition.get("field", ""), tests[0], condition[tests[0]]))
+    return checked
+
+
+def _holds(reply, conditions):
+    try:
+        return all(CONDITIONS[test](_at(reply, field) if field else reply, want) for field, test, want in conditions)
+    except TypeError:  # comparing values of different kinds: not met yet
+        return False
+
+
 def op_poll(body, context):
-    """Call one endpoint until a field of its reply has an expected value, and return that reply."""
-    url, until = _input(body, "url", str), _input(body, "until", dict)
-    if "field" not in until or "equals" not in until:
-        raise BadRequest("'until' must hold field and equals")
+    """Call one endpoint until its reply meets the conditions in until, and return that reply."""
+    url, conditions = _input(body, "url", str), _conditions(_input(body, "until", (dict, list)))
     method = _input(body, "method", str, "GET").upper()
     headers, params = _input(body, "headers", dict, {}), _input(body, "params", dict, {})
     interval, attempts = _input(body, "intervalMs", (int, float), 2000) / 1000, _input(body, "maxAttempts", int, 100)
-    field, expected = until["field"], until["equals"]
     for attempt in range(1, attempts + 1):
         try:
             if method == "GET":
@@ -108,11 +144,11 @@ def op_poll(body, context):
             reply = response.json() if response.ok and response.content else None
         except (requests.RequestException, ValueError):
             reply = None
-        if reply is not None and _at(reply, field) == expected:
+        if reply is not None and _holds(reply, conditions):
             return {"result": reply, "attempts": attempt}
         if attempt < attempts:
             time.sleep(interval)
-    raise Answer({"error": f"'{field}' was not {expected!r} after {attempts} attempts"}, 504)
+    raise Answer({"error": f"the reply did not meet 'until' after {attempts} attempts"}, 504)
 
 
 def _json(response):
@@ -125,12 +161,16 @@ def _json(response):
 
 
 def op_fan_out(body, context):
-    """Call one endpoint once per item and return the replies in item order."""
+    """Call one endpoint once per item and return the replies in item order. A failed call fails the whole step,
+    unless failsafe names it (its HTTP status, or "error" for no answer at all; true for any failure): then its slot
+    holds {error, status} and the rest go on."""
     url, items = _input(body, "url", str), _input(body, "items", list)
     method = _input(body, "method", str, "POST").upper()
     headers, shared = _input(body, "headers", dict, {}), _input(body, "params", dict, {})
     delay = _input(body, "delayMs", (int, float), 0) / 1000
     timeout = _input(body, "timeoutSeconds", (int, float), 30)
+    failsafe = _input(body, "failsafe", (list, bool), [])
+    tolerated = lambda status: failsafe is True or (isinstance(failsafe, list) and status in failsafe)
     results = []
     for index, item in enumerate(items):
         params = {**shared, **(item if isinstance(item, dict) else {"item": item})}
@@ -140,10 +180,16 @@ def op_fan_out(body, context):
             else:
                 response = requests.request(method, url, json=params, headers=headers, timeout=timeout)
         except requests.RequestException as e:
-            raise Answer({"error": f"item {index}: {type(e).__name__}: {e}", "results": results}, 502)
-        if not response.ok:
-            raise Answer({"error": f"item {index}: HTTP {response.status_code}", "results": results}, 502)
-        results.append(_json(response))
+            if not tolerated("error"):
+                raise Answer({"error": f"item {index}: {type(e).__name__}: {e}", "results": results}, 502)
+            results.append({"error": f"{type(e).__name__}: {e}", "status": None})
+        else:
+            if response.ok:
+                results.append(_json(response))
+            elif tolerated(response.status_code):
+                results.append({"error": f"HTTP {response.status_code}", "status": response.status_code})
+            else:
+                raise Answer({"error": f"item {index}: HTTP {response.status_code}", "results": results}, 502)
         if delay and index < len(items) - 1:
             time.sleep(delay)
     return {"results": results}

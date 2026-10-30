@@ -56,7 +56,9 @@ spec:
     default: 5000
   - name: until
     type: object
-    description: 'poll: The stop condition: {field: <dotted path into the reply>, equals: <value>}.'
+    description: 'poll: when to stop: {field, <test>: value}, or a list of them that must all hold. field is a dotted
+      path into the reply (left out: the whole reply); the test is one of equals, ne, in, notIn, exists, gt, gte,
+      lt, lte, contains. An object or a list.'
     required: false
   - name: method
     type: string
@@ -86,6 +88,11 @@ spec:
     type: number
     description: 'fan_out: Pause between calls.'
     default: 0
+  - name: failsafe
+    type: array
+    description: 'fan_out: failures that do not fail the step: HTTP statuses, and "error" for no answer at all, or
+      true for any. A tolerated failure''s slot holds {error, status}.'
+    default: []
   output:
   - name: text
     type: string
@@ -145,4 +152,26 @@ spec:
     status: 400
   - input:
       op: nope
+    status: 400
+  - input:
+      op: poll
+      url: http://x
+      until:
+        field: status
+        equals: done
+        ne: x
+    status: 400
+  - input:
+      op: poll
+      url: http://x
+      until:
+      - field: status
+        in: done
+    status: 400
+  - input:
+      op: poll
+      url: http://x
+      until:
+      - field: status
+        nope: 1
     status: 400
